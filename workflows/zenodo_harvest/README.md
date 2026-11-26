@@ -13,11 +13,14 @@ computes; it writes nothing to NOMAD.
 flowchart LR
   dl["download + unzip"] --> header["raw file header"] --> detect["technique detection<br/>(LLM, if use llm)"]
   detect --> eln["ELN builder"] --> fill["ELN fill<br/>(LLM, if use llm)"] --> merge["check + merge"]
-  merge --> convert["NeXus converter"] --> report["report builder"]
+  merge --> convert["NeXus converter"] --> keep["keep success"] --> report["report builder"]
   files["ELN files<br/>(once per run)"] --> detect & eln & fill & merge
 ```
 
-Every step after the download runs once per raw file, except the ELN files step. The technique
+Every step after the download runs once per raw file, except the ELN files step.
+If a file's job fails, Galaxy pauses its later jobs. The *keep success* steps
+([`__KEEP_SUCCESS_DATASETS__`](https://galaxyproject.github.io/foundry/patterns/collection-cleanup-after-mapover-failure/))
+drop that file before the report, so the report still runs and lists the file as `failed (no_result)`. The technique
 comes from the detection answer if its quote is found in the dataset's files, else from the header
 markers of the ELN rules, else from the file extension. The LLM part is on by default and can be
 turned off; only LLM values with a quote found in the dataset's files are kept.

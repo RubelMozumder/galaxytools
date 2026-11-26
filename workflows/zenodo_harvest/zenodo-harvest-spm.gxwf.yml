@@ -206,16 +206,58 @@ steps:
     tool_state:
       config: null
       nxdl: auto
+  # A failed per-file job pauses its later jobs, and `report` with them. These steps keep only the
+  # `ok` elements (paused ones too are dropped), so `report` runs and marks the rest "no_result".
+  keep_statuses:
+    doc: Keep the conversion statuses of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/status_json
+    tool_state:
+      replacement: null
+  keep_nexus_files:
+    doc: Keep the NeXus files of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/output_nxs
+    tool_state:
+      replacement: null
+  keep_elns:
+    doc: Keep the ELNs of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: merge/merged_eln
+    tool_state:
+      replacement: null
+  keep_eln_reports:
+    doc: Keep the ELN reports of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: eln/eln_report
+    tool_state:
+      replacement: null
+  keep_converter_logs:
+    doc: Keep the converter logs of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/converter_log
+    tool_state:
+      replacement: null
   report:
     doc: Build the results, one NOMAD project zip per record, logs and a summary.
     tool_id: nexus_report_builder
     tool_version: 0.2.0
     in:
       manifest: download/manifest
-      statuses: convert/status_json
-      nexus_files: convert/output_nxs
-      elns: merge/merged_eln
+      statuses: keep_statuses/output
+      nexus_files: keep_nexus_files/output
+      elns: keep_elns/output
       raw_files: download/raw_files
       context_files: download/context_files
-      eln_reports: eln/eln_report
-      converter_logs: convert/converter_log
+      eln_reports: keep_eln_reports/output
+      converter_logs: keep_converter_logs/output
