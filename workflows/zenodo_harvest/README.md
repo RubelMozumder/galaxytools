@@ -18,7 +18,10 @@ flowchart LR
 ```
 
 Every step after the download runs once per raw file, except the ELN files step.
-If a file's job fails, Galaxy pauses its later jobs. The *keep success* steps
+If a file's job fails, Galaxy pauses its later jobs. A failed LLM job is replaced by a fixed
+"LLM job failed" answer
+([`__FILTER_FAILED_DATASETS__`](https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/tools/filter_failed_collection_1.1.0.xml)),
+so the file gets its rule ELN and the run goes on. The *keep success* steps
 ([`__KEEP_SUCCESS_DATASETS__`](https://galaxyproject.github.io/foundry/patterns/collection-cleanup-after-mapover-failure/))
 drop that file before the report, so the report still runs and lists the file as `failed (no_result)`. The technique
 comes from the detection answer if its quote is found in the dataset's files, else from the header

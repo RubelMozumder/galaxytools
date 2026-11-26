@@ -5,7 +5,7 @@
     "annotation": "Downloads the files of a work list from Zenodo, reads each raw SPM file's header, finds its\ntechnique, builds its ELN (optionally with an LLM through LLM Hub), converts the raw files to\nNeXus with pynxtools-spm and builds the results, NOMAD project zips and logs for the\nzenodo_harvest Action of nomad-eosc-galaxy-actions.\n",
     "tags": [],
     "license": "MIT",
-    "uuid": "82f13f72-e3c1-4b2b-9cfe-0d87e49e2d27",
+    "uuid": "06c854dc-d11d-48e6-b2f1-9ebc4707cf63",
     "creator": [
         {
             "name": "Rubel Mozumder",
@@ -160,7 +160,7 @@
             "annotation": "Download and safely unzip the work list's files; write the manifest.",
             "tool_state": "{\"__page__\": 0, \"pipeline_version\": \"pynxtools_spm_converter 0.5.1+galaxy0\"}",
             "tool_id": "zenodo_nomad_download",
-            "tool_version": "0.2.0",
+            "tool_version": "0.3.0",
             "position": {
                 "top": 60,
                 "left": 60
@@ -269,7 +269,7 @@
             "annotation": "Write the input of the detection job per raw file (Detection instructions, header, record and context texts).",
             "tool_state": "{\"__page__\": 0, \"stage_cond\": {\"stage\": \"detect\"}}",
             "tool_id": "nexus_llm_input",
-            "tool_version": "0.4.0",
+            "tool_version": "0.4.1",
             "position": {
                 "top": 90,
                 "left": 90
@@ -351,16 +351,48 @@
         },
         "11": {
             "id": 11,
+            "name": "__FILTER_FAILED_DATASETS__",
+            "type": "tool",
+            "label": "detect_answers",
+            "annotation": "Put a fixed \"LLM job failed\" answer in place of each failed detection job.",
+            "tool_state": "{\"__page__\": 0}",
+            "tool_id": "__FILTER_FAILED_DATASETS__",
+            "tool_version": "1.1.0",
+            "position": {
+                "top": 110,
+                "left": 110
+            },
+            "input_connections": {
+                "input": [
+                    {
+                        "id": 10,
+                        "output_name": "output"
+                    }
+                ],
+                "replacement": [
+                    {
+                        "id": 6,
+                        "output_name": "no_answer"
+                    }
+                ]
+            },
+            "inputs": [],
+            "outputs": [],
+            "workflow_outputs": [],
+            "post_job_actions": {}
+        },
+        "12": {
+            "id": 12,
             "name": "nexus_eln_builder",
             "type": "tool",
             "label": "eln",
             "annotation": "Build an ELN per raw file. The technique comes from the detection answer if its quote is found, else from the header markers of the rules, else from the file extension.",
             "tool_state": "{\"__page__\": 0, \"technique\": \"auto\"}",
             "tool_id": "nexus_eln_builder",
-            "tool_version": "0.4.0",
+            "tool_version": "0.4.1",
             "position": {
-                "top": 110,
-                "left": 110
+                "top": 120,
+                "left": 120
             },
             "input_connections": {
                 "bundle": [
@@ -383,7 +415,7 @@
                 ],
                 "answer": [
                     {
-                        "id": 10,
+                        "id": 11,
                         "output_name": "output"
                     }
                 ]
@@ -398,18 +430,18 @@
             ],
             "post_job_actions": {}
         },
-        "12": {
-            "id": 12,
+        "13": {
+            "id": 13,
             "name": "nexus_llm_input",
             "type": "tool",
             "label": "llm_input",
             "annotation": "Write the input of the ELN job per raw file (instructions, base ELN, header, record and context texts).",
             "tool_state": "{\"__page__\": 0, \"stage_cond\": {\"stage\": \"eln\"}}",
             "tool_id": "nexus_llm_input",
-            "tool_version": "0.4.0",
+            "tool_version": "0.4.1",
             "position": {
-                "top": 120,
-                "left": 120
+                "top": 130,
+                "left": 130
             },
             "input_connections": {
                 "bundle": [
@@ -420,7 +452,7 @@
                 ],
                 "stage_cond|eln": [
                     {
-                        "id": 11,
+                        "id": 12,
                         "output_name": "eln"
                     }
                 ],
@@ -448,8 +480,8 @@
             "workflow_outputs": [],
             "post_job_actions": {}
         },
-        "13": {
-            "id": 13,
+        "14": {
+            "id": 14,
             "name": "llm_hub",
             "type": "tool",
             "label": "llm",
@@ -459,13 +491,13 @@
             "tool_id": "llm_hub",
             "tool_version": "2.53.0+galaxy0",
             "position": {
-                "top": 130,
-                "left": 130
+                "top": 140,
+                "left": 140
             },
             "input_connections": {
                 "model_condition|text_context": [
                     {
-                        "id": 12,
+                        "id": 13,
                         "output_name": "llm_context"
                     }
                 ],
@@ -492,18 +524,50 @@
             ],
             "post_job_actions": {}
         },
-        "14": {
-            "id": 14,
+        "15": {
+            "id": 15,
+            "name": "__FILTER_FAILED_DATASETS__",
+            "type": "tool",
+            "label": "llm_answers",
+            "annotation": "Put a fixed \"LLM job failed\" answer in place of each failed ELN fill job.",
+            "tool_state": "{\"__page__\": 0}",
+            "tool_id": "__FILTER_FAILED_DATASETS__",
+            "tool_version": "1.1.0",
+            "position": {
+                "top": 150,
+                "left": 150
+            },
+            "input_connections": {
+                "input": [
+                    {
+                        "id": 14,
+                        "output_name": "output"
+                    }
+                ],
+                "replacement": [
+                    {
+                        "id": 6,
+                        "output_name": "no_answer"
+                    }
+                ]
+            },
+            "inputs": [],
+            "outputs": [],
+            "workflow_outputs": [],
+            "post_job_actions": {}
+        },
+        "16": {
+            "id": 16,
             "name": "nexus_eln_llm_merge",
             "type": "tool",
             "label": "merge",
             "annotation": "Keep the LLM values that pass the checks and merge them into the rule ELN.",
             "tool_state": "{\"__page__\": 0}",
             "tool_id": "nexus_eln_llm_merge",
-            "tool_version": "0.4.0",
+            "tool_version": "0.4.1",
             "position": {
-                "top": 140,
-                "left": 140
+                "top": 160,
+                "left": 160
             },
             "input_connections": {
                 "bundle": [
@@ -514,13 +578,13 @@
                 ],
                 "eln": [
                     {
-                        "id": 11,
+                        "id": 12,
                         "output_name": "eln"
                     }
                 ],
                 "answer": [
                     {
-                        "id": 13,
+                        "id": 15,
                         "output_name": "output"
                     }
                 ],
@@ -557,8 +621,8 @@
             ],
             "post_job_actions": {}
         },
-        "15": {
-            "id": 15,
+        "17": {
+            "id": 17,
             "name": "pynxtools_spm_converter",
             "type": "tool",
             "label": "convert",
@@ -567,8 +631,8 @@
             "tool_id": "pynxtools_spm_converter",
             "tool_version": "0.5.1+galaxy0",
             "position": {
-                "top": 150,
-                "left": 150
+                "top": 170,
+                "left": 170
             },
             "input_connections": {
                 "raw_file": [
@@ -579,7 +643,7 @@
                 ],
                 "eln": [
                     {
-                        "id": 14,
+                        "id": 16,
                         "output_name": "merged_eln"
                     }
                 ]
@@ -602,64 +666,12 @@
             ],
             "post_job_actions": {}
         },
-        "16": {
-            "id": 16,
-            "name": "__KEEP_SUCCESS_DATASETS__",
-            "type": "tool",
-            "label": "keep_statuses",
-            "annotation": "Keep the conversion statuses of the files whose jobs succeeded.",
-            "tool_state": "{\"__page__\": 0, \"replacement\": null}",
-            "tool_id": "__KEEP_SUCCESS_DATASETS__",
-            "tool_version": "1.1.0",
-            "position": {
-                "top": 160,
-                "left": 160
-            },
-            "input_connections": {
-                "input": [
-                    {
-                        "id": 15,
-                        "output_name": "status_json"
-                    }
-                ]
-            },
-            "inputs": [],
-            "outputs": [],
-            "workflow_outputs": [],
-            "post_job_actions": {}
-        },
-        "17": {
-            "id": 17,
-            "name": "__KEEP_SUCCESS_DATASETS__",
-            "type": "tool",
-            "label": "keep_nexus_files",
-            "annotation": "Keep the NeXus files of the files whose jobs succeeded.",
-            "tool_state": "{\"__page__\": 0, \"replacement\": null}",
-            "tool_id": "__KEEP_SUCCESS_DATASETS__",
-            "tool_version": "1.1.0",
-            "position": {
-                "top": 170,
-                "left": 170
-            },
-            "input_connections": {
-                "input": [
-                    {
-                        "id": 15,
-                        "output_name": "output_nxs"
-                    }
-                ]
-            },
-            "inputs": [],
-            "outputs": [],
-            "workflow_outputs": [],
-            "post_job_actions": {}
-        },
         "18": {
             "id": 18,
             "name": "__KEEP_SUCCESS_DATASETS__",
             "type": "tool",
-            "label": "keep_elns",
-            "annotation": "Keep the ELNs of the files whose jobs succeeded.",
+            "label": "keep_statuses",
+            "annotation": "Keep the conversion statuses of the files whose jobs succeeded.",
             "tool_state": "{\"__page__\": 0, \"replacement\": null}",
             "tool_id": "__KEEP_SUCCESS_DATASETS__",
             "tool_version": "1.1.0",
@@ -670,8 +682,8 @@
             "input_connections": {
                 "input": [
                     {
-                        "id": 14,
-                        "output_name": "merged_eln"
+                        "id": 17,
+                        "output_name": "status_json"
                     }
                 ]
             },
@@ -684,8 +696,8 @@
             "id": 19,
             "name": "__KEEP_SUCCESS_DATASETS__",
             "type": "tool",
-            "label": "keep_eln_reports",
-            "annotation": "Keep the ELN reports of the files whose jobs succeeded.",
+            "label": "keep_nexus_files",
+            "annotation": "Keep the NeXus files of the files whose jobs succeeded.",
             "tool_state": "{\"__page__\": 0, \"replacement\": null}",
             "tool_id": "__KEEP_SUCCESS_DATASETS__",
             "tool_version": "1.1.0",
@@ -696,8 +708,8 @@
             "input_connections": {
                 "input": [
                     {
-                        "id": 11,
-                        "output_name": "eln_report"
+                        "id": 17,
+                        "output_name": "output_nxs"
                     }
                 ]
             },
@@ -710,8 +722,8 @@
             "id": 20,
             "name": "__KEEP_SUCCESS_DATASETS__",
             "type": "tool",
-            "label": "keep_converter_logs",
-            "annotation": "Keep the converter logs of the files whose jobs succeeded.",
+            "label": "keep_elns",
+            "annotation": "Keep the ELNs of the files whose jobs succeeded.",
             "tool_state": "{\"__page__\": 0, \"replacement\": null}",
             "tool_id": "__KEEP_SUCCESS_DATASETS__",
             "tool_version": "1.1.0",
@@ -722,8 +734,8 @@
             "input_connections": {
                 "input": [
                     {
-                        "id": 15,
-                        "output_name": "converter_log"
+                        "id": 16,
+                        "output_name": "merged_eln"
                     }
                 ]
             },
@@ -734,6 +746,58 @@
         },
         "21": {
             "id": 21,
+            "name": "__KEEP_SUCCESS_DATASETS__",
+            "type": "tool",
+            "label": "keep_eln_reports",
+            "annotation": "Keep the ELN reports of the files whose jobs succeeded.",
+            "tool_state": "{\"__page__\": 0, \"replacement\": null}",
+            "tool_id": "__KEEP_SUCCESS_DATASETS__",
+            "tool_version": "1.1.0",
+            "position": {
+                "top": 210,
+                "left": 210
+            },
+            "input_connections": {
+                "input": [
+                    {
+                        "id": 12,
+                        "output_name": "eln_report"
+                    }
+                ]
+            },
+            "inputs": [],
+            "outputs": [],
+            "workflow_outputs": [],
+            "post_job_actions": {}
+        },
+        "22": {
+            "id": 22,
+            "name": "__KEEP_SUCCESS_DATASETS__",
+            "type": "tool",
+            "label": "keep_converter_logs",
+            "annotation": "Keep the converter logs of the files whose jobs succeeded.",
+            "tool_state": "{\"__page__\": 0, \"replacement\": null}",
+            "tool_id": "__KEEP_SUCCESS_DATASETS__",
+            "tool_version": "1.1.0",
+            "position": {
+                "top": 220,
+                "left": 220
+            },
+            "input_connections": {
+                "input": [
+                    {
+                        "id": 17,
+                        "output_name": "converter_log"
+                    }
+                ]
+            },
+            "inputs": [],
+            "outputs": [],
+            "workflow_outputs": [],
+            "post_job_actions": {}
+        },
+        "23": {
+            "id": 23,
             "name": "nexus_report_builder",
             "type": "tool",
             "label": "report",
@@ -742,8 +806,8 @@
             "tool_id": "nexus_report_builder",
             "tool_version": "0.2.0",
             "position": {
-                "top": 210,
-                "left": 210
+                "top": 230,
+                "left": 230
             },
             "input_connections": {
                 "manifest": [
@@ -754,19 +818,19 @@
                 ],
                 "statuses": [
                     {
-                        "id": 16,
+                        "id": 18,
                         "output_name": "output"
                     }
                 ],
                 "nexus_files": [
                     {
-                        "id": 17,
+                        "id": 19,
                         "output_name": "output"
                     }
                 ],
                 "elns": [
                     {
-                        "id": 18,
+                        "id": 20,
                         "output_name": "output"
                     }
                 ],
@@ -784,13 +848,13 @@
                 ],
                 "eln_reports": [
                     {
-                        "id": 19,
+                        "id": 21,
                         "output_name": "output"
                     }
                 ],
                 "converter_logs": [
                     {
-                        "id": 20,
+                        "id": 22,
                         "output_name": "output"
                     }
                 ]

@@ -13,8 +13,8 @@ creator:
   - class: Organization
     name: FAIRmat
     url: https://www.fairmat-nfdi.eu/fairmat/
-# The NOMAD side uploads the work list to step 0, sets steps 2 and 3, and reads the outputs by
-# these labels (activities.py: GALAXY_*_STEP; workflows.py: GALAXY_*_OUTPUT).
+# The NOMAD side sends the inputs and reads the outputs by these labels
+# (activities.py: GALAXY_*_INPUT; workflows.py: GALAXY_*_OUTPUT).
 inputs:
   work list:
     type: data
@@ -85,7 +85,7 @@ steps:
   download:
     doc: Download and safely unzip the work list's files; write the manifest.
     tool_id: zenodo_nomad_download
-    tool_version: 0.2.0
+    tool_version: 0.3.0
     in:
       work_list: work list
       prefetched: prefetched files
@@ -108,7 +108,7 @@ steps:
   detect_input:
     doc: Write the input of the detection job per raw file (Detection instructions, header, record and context texts).
     tool_id: nexus_llm_input
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # Bundles and headers have the same element identifiers as the raw files, so Galaxy pairs them.
     in:
       bundle: download/context_bundles
@@ -138,24 +138,33 @@ steps:
         prompt: Follow the instructions in the file eln_instructions.txt exactly. Use only the other context files as sources. Answer with the two YAML blocks only.
       advanced:
         temperature: 0.0
+  # A failed LLM job (e.g. the LLM server timed out) would pause the file's later jobs and stop
+  # the run. Its answer is replaced by download's `no_answer`, so the rule ELN is used ("llm_failed").
+  detect_answers:
+    doc: Put a fixed "LLM job failed" answer in place of each failed detection job.
+    tool_id: __FILTER_FAILED_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: detect/output
+      replacement: download/no_answer
   eln:
     doc: >-
       Build an ELN per raw file. The technique comes from the detection answer if its quote is
       found, else from the header markers of the rules, else from the file extension.
     tool_id: nexus_eln_builder
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # A skipped detect step gives "null" answers; the builder then ignores them.
     in:
       bundle: download/context_bundles
       header: header/header
       rules: eln_files/rules
-      answer: detect/output
+      answer: detect_answers/output
     tool_state:
       technique: auto
   llm_input:
     doc: Write the input of the ELN job per raw file (instructions, base ELN, header, record and context texts).
     tool_id: nexus_llm_input
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     in:
       bundle: download/context_bundles
       stage_cond|eln: eln/eln
@@ -181,15 +190,22 @@ steps:
         prompt: Follow the instructions in the file eln_instructions.txt exactly. Use only the other context files as sources. Answer with the two YAML blocks only.
       advanced:
         temperature: 0.0
+  llm_answers:
+    doc: Put a fixed "LLM job failed" answer in place of each failed ELN fill job.
+    tool_id: __FILTER_FAILED_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: llm/output
+      replacement: download/no_answer
   merge:
     doc: Keep the LLM values that pass the checks and merge them into the rule ELN.
     tool_id: nexus_eln_llm_merge
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # A skipped llm step gives "null" answers; the rule ELN is then kept.
     in:
       bundle: download/context_bundles
       eln: eln/eln
-      answer: llm/output
+      answer: llm_answers/output
       header: header/header
       rules: eln_files/rules
       instructions: eln_files/instructions
