@@ -18,13 +18,19 @@ flowchart LR
 ```
 
 Every step after the download runs once per raw file, except the ELN files step.
-If a file's job fails, Galaxy pauses its later jobs. A failed LLM job is replaced by a fixed
-"LLM job failed" answer
-([`__FILTER_FAILED_DATASETS__`](https://github.com/galaxyproject/galaxy/blob/dev/lib/galaxy/tools/filter_failed_collection_1.1.0.xml)),
-so the file gets its rule ELN and the run goes on. The *keep success* steps
-([`__KEEP_SUCCESS_DATASETS__`](https://galaxyproject.github.io/foundry/patterns/collection-cleanup-after-mapover-failure/))
-drop that file before the report, so the report still runs and lists the file as `failed (no_result)`. The technique
-comes from the detection answer if its quote is found in the dataset's files, else from the header
+If a file's job fails, Galaxy pauses its later jobs, and a paused job can stop the whole run.
+So the workflow puts a fixed file of the download step in place of a failed or paused job
+([`__KEEP_SUCCESS_DATASETS__`](https://galaxyproject.github.io/foundry/patterns/collection-cleanup-after-mapover-failure/)
+with a replacement):
+
+- header → "no header";
+- LLM (detection or ELN fill) → "LLM job failed", so the file gets its rule ELN;
+- ELN builder → an empty ELN, so the converter reports the file as failed.
+
+The *keep success* steps before the report drop a file whose merge or converter job failed, so
+the report still runs and lists it as `failed (no_result)`.
+
+The technique comes from the detection answer if its quote is found in the dataset's files, else from the header
 markers of the ELN rules, else from the file extension. The LLM part is on by default and can be
 turned off; only LLM values with a quote found in the dataset's files are kept.
 

@@ -105,6 +105,15 @@ steps:
     tool_version: 0.5.1+galaxy0
     in:
       raw: download/raw_files
+  # A failed or paused job (e.g. a crash) would stop the steps that wait for all elements of a
+  # list, and so the whole run. This step and `elns` put a fixed file in its place instead.
+  headers:
+    doc: Put download's "no header" file in place of each failed header job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: header/header
+      replacement: download/no_header
   detect_input:
     doc: Write the input of the detection job per raw file (Detection instructions, header, record and context texts).
     tool_id: nexus_llm_input
@@ -112,7 +121,7 @@ steps:
     # Bundles and headers have the same element identifiers as the raw files, so Galaxy pairs them.
     in:
       bundle: download/context_bundles
-      header: header/header
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
     tool_state:
@@ -138,11 +147,11 @@ steps:
         prompt: Follow the instructions in the file eln_instructions.txt exactly. Use only the other context files as sources. Answer with the two YAML blocks only.
       advanced:
         temperature: 0.0
-  # A failed LLM job (e.g. the LLM server timed out) would pause the file's later jobs and stop
-  # the run. Its answer is replaced by download's `no_answer`, so the rule ELN is used ("llm_failed").
+  # A failed LLM job (e.g. the LLM server timed out), or one paused after a failed input, gets
+  # download's `no_answer`, so the rule ELN is used ("llm_failed"). Skipped jobs pass unchanged.
   detect_answers:
-    doc: Put a fixed "LLM job failed" answer in place of each failed detection job.
-    tool_id: __FILTER_FAILED_DATASETS__
+    doc: Put a fixed "LLM job failed" answer in place of each failed or paused detection job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
     tool_version: 1.1.0
     in:
       input: detect/output
@@ -156,19 +165,27 @@ steps:
     # A skipped detect step gives "null" answers; the builder then ignores them.
     in:
       bundle: download/context_bundles
-      header: header/header
+      header: headers/output
       rules: eln_files/rules
       answer: detect_answers/output
     tool_state:
       technique: auto
+  # The converter reports a file with this ELN (no definition) as failed.
+  elns:
+    doc: Put download's empty ELN in place of each failed ELN builder job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: eln/eln
+      replacement: download/no_eln
   llm_input:
     doc: Write the input of the ELN job per raw file (instructions, base ELN, header, record and context texts).
     tool_id: nexus_llm_input
     tool_version: 0.4.1
     in:
       bundle: download/context_bundles
-      stage_cond|eln: eln/eln
-      header: header/header
+      stage_cond|eln: elns/output
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
     tool_state:
@@ -191,8 +208,8 @@ steps:
       advanced:
         temperature: 0.0
   llm_answers:
-    doc: Put a fixed "LLM job failed" answer in place of each failed ELN fill job.
-    tool_id: __FILTER_FAILED_DATASETS__
+    doc: Put a fixed "LLM job failed" answer in place of each failed or paused ELN fill job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
     tool_version: 1.1.0
     in:
       input: llm/output
@@ -204,9 +221,9 @@ steps:
     # A skipped llm step gives "null" answers; the rule ELN is then kept.
     in:
       bundle: download/context_bundles
-      eln: eln/eln
+      eln: elns/output
       answer: llm_answers/output
-      header: header/header
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
   convert:
