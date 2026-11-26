@@ -13,8 +13,8 @@ creator:
   - class: Organization
     name: FAIRmat
     url: https://www.fairmat-nfdi.eu/fairmat/
-# The NOMAD side uploads the work list to step 0, sets steps 2 and 3, and reads the outputs by
-# these labels (activities.py: GALAXY_*_STEP; workflows.py: GALAXY_*_OUTPUT).
+# The NOMAD side sends the inputs and reads the outputs by these labels
+# (activities.py: GALAXY_*_INPUT; workflows.py: GALAXY_*_OUTPUT).
 inputs:
   work list:
     type: data
@@ -85,7 +85,7 @@ steps:
   download:
     doc: Download and safely unzip the work list's files; write the manifest.
     tool_id: zenodo_nomad_download
-    tool_version: 0.2.0
+    tool_version: 0.3.0
     in:
       work_list: work list
       prefetched: prefetched files
@@ -105,14 +105,23 @@ steps:
     tool_version: 0.5.1+galaxy0
     in:
       raw: download/raw_files
+  # A failed or paused job (e.g. a crash) would stop the steps that wait for all elements of a
+  # list, and so the whole run. This step and `elns` put a fixed file in its place instead.
+  headers:
+    doc: Put download's "no header" file in place of each failed header job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: header/header
+      replacement: download/no_header
   detect_input:
     doc: Write the input of the detection job per raw file (Detection instructions, header, record and context texts).
     tool_id: nexus_llm_input
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # Bundles and headers have the same element identifiers as the raw files, so Galaxy pairs them.
     in:
       bundle: download/context_bundles
-      header: header/header
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
     tool_state:
@@ -138,28 +147,45 @@ steps:
         prompt: Follow the instructions in the file eln_instructions.txt exactly. Use only the other context files as sources. Answer with the two YAML blocks only.
       advanced:
         temperature: 0.0
+  # A failed LLM job (e.g. the LLM server timed out), or one paused after a failed input, gets
+  # download's `no_answer`, so the rule ELN is used ("llm_failed"). Skipped jobs pass unchanged.
+  detect_answers:
+    doc: Put a fixed "LLM job failed" answer in place of each failed or paused detection job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: detect/output
+      replacement: download/no_answer
   eln:
     doc: >-
       Build an ELN per raw file. The technique comes from the detection answer if its quote is
       found, else from the header markers of the rules, else from the file extension.
     tool_id: nexus_eln_builder
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # A skipped detect step gives "null" answers; the builder then ignores them.
     in:
       bundle: download/context_bundles
-      header: header/header
+      header: headers/output
       rules: eln_files/rules
-      answer: detect/output
+      answer: detect_answers/output
     tool_state:
       technique: auto
+  # The converter reports a file with this ELN (no definition) as failed.
+  elns:
+    doc: Put download's empty ELN in place of each failed ELN builder job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: eln/eln
+      replacement: download/no_eln
   llm_input:
     doc: Write the input of the ELN job per raw file (instructions, base ELN, header, record and context texts).
     tool_id: nexus_llm_input
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     in:
       bundle: download/context_bundles
-      stage_cond|eln: eln/eln
-      header: header/header
+      stage_cond|eln: elns/output
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
     tool_state:
@@ -181,16 +207,23 @@ steps:
         prompt: Follow the instructions in the file eln_instructions.txt exactly. Use only the other context files as sources. Answer with the two YAML blocks only.
       advanced:
         temperature: 0.0
+  llm_answers:
+    doc: Put a fixed "LLM job failed" answer in place of each failed or paused ELN fill job.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: llm/output
+      replacement: download/no_answer
   merge:
     doc: Keep the LLM values that pass the checks and merge them into the rule ELN.
     tool_id: nexus_eln_llm_merge
-    tool_version: 0.4.0
+    tool_version: 0.4.1
     # A skipped llm step gives "null" answers; the rule ELN is then kept.
     in:
       bundle: download/context_bundles
-      eln: eln/eln
-      answer: llm/output
-      header: header/header
+      eln: elns/output
+      answer: llm_answers/output
+      header: headers/output
       rules: eln_files/rules
       instructions: eln_files/instructions
   convert:
@@ -206,16 +239,58 @@ steps:
     tool_state:
       config: null
       nxdl: auto
+  # A failed per-file job pauses its later jobs, and `report` with them. These steps keep only the
+  # `ok` elements (paused ones too are dropped), so `report` runs and marks the rest "no_result".
+  keep_statuses:
+    doc: Keep the conversion statuses of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/status_json
+    tool_state:
+      replacement: null
+  keep_nexus_files:
+    doc: Keep the NeXus files of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/output_nxs
+    tool_state:
+      replacement: null
+  keep_elns:
+    doc: Keep the ELNs of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: merge/merged_eln
+    tool_state:
+      replacement: null
+  keep_eln_reports:
+    doc: Keep the ELN reports of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: eln/eln_report
+    tool_state:
+      replacement: null
+  keep_converter_logs:
+    doc: Keep the converter logs of the files whose jobs succeeded.
+    tool_id: __KEEP_SUCCESS_DATASETS__
+    tool_version: 1.1.0
+    in:
+      input: convert/converter_log
+    tool_state:
+      replacement: null
   report:
     doc: Build the results, one NOMAD project zip per record, logs and a summary.
     tool_id: nexus_report_builder
     tool_version: 0.2.0
     in:
       manifest: download/manifest
-      statuses: convert/status_json
-      nexus_files: convert/output_nxs
-      elns: merge/merged_eln
+      statuses: keep_statuses/output
+      nexus_files: keep_nexus_files/output
+      elns: keep_elns/output
       raw_files: download/raw_files
       context_files: download/context_files
-      eln_reports: eln/eln_report
-      converter_logs: convert/converter_log
+      eln_reports: keep_eln_reports/output
+      converter_logs: keep_converter_logs/output
